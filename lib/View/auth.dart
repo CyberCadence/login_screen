@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_otp_text_field/flutter_otp_text_field.dart';
+import 'package:get/get.dart';
+import 'package:login_screen/logic.dart';
+import 'package:pinput/pinput.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({Key? key}) : super(key: key);
+  AuthScreen({Key? key}) : super(key: key);
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -12,6 +15,7 @@ late TabController tabController;
 
 class _AuthScreenState extends State<AuthScreen>
     with SingleTickerProviderStateMixin {
+  final ctrl = Get.put(AuthController());
   @override
   void initState() {
     tabController = TabController(length: 2, vsync: this);
@@ -52,10 +56,10 @@ class _AuthScreenState extends State<AuthScreen>
             ),
             Expanded(
               child: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   borderRadius: BorderRadius.all(Radius.circular(20)),
                 ),
-                margin: EdgeInsets.symmetric(horizontal: 10),
+                margin: const EdgeInsets.symmetric(horizontal: 10),
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -88,12 +92,20 @@ class _AuthScreenState extends State<AuthScreen>
                       Container(
                         height: height * 0.6,
                         color: Colors.white,
-                        child: TabBarView(
-                            controller: tabController,
-                            children: const [
-                              CustomWidget(hintText: 'Enter Phone Number '),
-                              CustomWidget(hintText: 'Enter Email ID')
-                            ]),
+                        child: TabBarView(controller: tabController, children: [
+                          CustomWidget(
+                            controller: ctrl.phone,
+                            ctrl: ctrl,
+                            hintText: 'Enter Phone Number ',
+                            fn: (val) {
+                              ctrl.verify();
+                            },
+                          ),
+                          CustomWidget(
+                            hintText: 'Enter Email ID',
+                            ctrl: ctrl,
+                          )
+                        ]),
                       ),
                     ],
                   ),
@@ -109,7 +121,15 @@ class _AuthScreenState extends State<AuthScreen>
 
 class CustomWidget extends StatefulWidget {
   final String hintText;
-  const CustomWidget({super.key, required this.hintText});
+  CustomWidget(
+      {super.key,
+      required this.hintText,
+      this.fn,
+      required this.ctrl,
+      this.controller});
+  void Function(String)? fn;
+  AuthController ctrl;
+  TextEditingController? controller;
 
   @override
   State<CustomWidget> createState() => _CustomWidgetState();
@@ -128,6 +148,7 @@ class _CustomWidgetState extends State<CustomWidget> {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           TextField(
+            controller: widget.controller,
             decoration: InputDecoration(
               hintText: widget.hintText,
               enabledBorder: OutlineInputBorder(
@@ -142,16 +163,24 @@ class _CustomWidgetState extends State<CustomWidget> {
           const SizedBox(
             height: 20,
           ),
-          ontap ? OtpWidget() : Container(),
+          ontap
+              ? OtpWidget(
+                  fn: (val) {
+                    widget.ctrl.verify();
+                  },
+                  controller: widget.ctrl.otp,
+                )
+              : Container(),
           const SizedBox(
             height: 30,
           ),
           Container(
-            margin: EdgeInsets.only(top: 10),
+            margin: const EdgeInsets.only(top: 10),
             height: height * 0.06,
             width: double.maxFinite,
             child: TextButton(
               onPressed: () {
+                widget.ctrl.phoneSignin();
                 setState(() {
                   ontap = true;
                 });
@@ -190,7 +219,10 @@ class _CustomWidgetState extends State<CustomWidget> {
 }
 
 class OtpWidget extends StatelessWidget {
-  const OtpWidget({super.key});
+  OtpWidget({super.key, this.fn, required this.controller});
+
+  void Function(String)? fn;
+  TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -211,28 +243,10 @@ class OtpWidget extends StatelessWidget {
         const SizedBox(
           height: 10,
         ),
-        OtpTextField(handleControllers: (controllers) {
-          
-        },
-          keyboardType: TextInputType.number,
-          numberOfFields: 6,
-          borderColor: const Color(0xFF512DA8),
-          showFieldAsBox: true,
-          //runs when a code is typed in
-          onCodeChanged: (String code) {
-            //handle validation or checks here
-          },
-          //runs when every textfield is filled
-          onSubmit: (String verificationCode) {
-            showDialog(
-                context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: const Text("Verification Code"),
-                    content: Text('Code entered is $verificationCode'),
-                  );
-                });
-          }, // end onSubmit
+        Pinput(
+          length: 6,
+          controller: controller,
+          onCompleted: fn,
         ),
         const SizedBox(
           height: 10,
